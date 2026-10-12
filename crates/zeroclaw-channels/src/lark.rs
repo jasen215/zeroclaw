@@ -5645,6 +5645,35 @@ mod tests {
         assert_eq!(msgs[0].content, "- 你好");
     }
 
+    /// A flat inbound post that carries only the `content_v2` alias must still
+    /// become message text.
+    ///
+    /// The captured payload above ships `content` and `content_v2` with the
+    /// same array, so it exercises neither the alias key in the flat-shape
+    /// check nor the `content_v2` fallback: removing both would leave it
+    /// passing. This payload carries the alias alone.
+    #[tokio::test]
+    async fn lark_parse_post_message_accepts_flat_content_v2_alias() {
+        let ch = make_channel();
+        let payload = serde_json::json!({
+            "header": { "event_type": "im.message.receive_v1" },
+            "event": {
+                "sender": { "sender_id": { "open_id": "ou_testuser123" } },
+                "message": {
+                    "message_type": "post",
+                    "chat_type": "p2p",
+                    "chat_id": "oc_chat",
+                    "mentions": [],
+                    "content": "{\"title\":\"\",\"content_v2\":[[{\"tag\":\"text\",\"text\":\"- \",\"style\":[]},{\"tag\":\"text\",\"text\":\"你好\",\"style\":[]}]]}"
+                }
+            }
+        });
+
+        let msgs = ch.parse_event_payload(&payload).await;
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0].content, "- 你好");
+    }
+
     #[tokio::test]
     async fn lark_parse_group_message_allows_without_mention_when_disabled() {
         let ch = LarkChannel::new(
